@@ -1,0 +1,68 @@
+---
+- hosts: all
+  become: yes
+  tasks:
+    - name: Install Git
+      yum: name={{item}}
+      with_items:
+        - git
+        - ncurses
+        - ncurses-devel
+    - name: Download emacs 25
+      get_url: url=http://ftp.gnu.org/gnu/emacs/emacs-25.3.tar.gz dest=/tmp/emacs.tar.gz mode=0644
+    - name: Extract emacs 25
+      unarchive:
+        remote_src: yes
+        src: /tmp/emacs.tar.gz
+        dest: /tmp/
+    - name: Configure emacs 25
+      shell: ./configure --without-x
+      args:
+        chdir: /tmp/emacs-25.3
+    - name: Make emacs 25
+      shell: make
+      args:
+        chdir: /tmp/emacs-25.3
+    - name: Install emacs 25
+      shell: make install
+      args:
+        chdir: /tmp/emacs-25.3
+    - name: Download emacs config
+      git: repo=https://github.com/cmtool/emacs-config.git dest=/home/vagrant/.emacs.d
+    - name: Chown
+      file:
+        path: /home/vagrant/.emacs.d
+        owner: vagrant
+        group: vagrant
+    - name: Download go
+      get_url: url=https://dl.google.com/go/go1.10.linux-amd64.tar.gz dest=/tmp/go.tar.gz
+    - name: Install go
+      unarchive:
+        remote_src: yes
+        src: /tmp/go.tar.gz
+        dest: /usr/local
+    - name: Modify Path
+      lineinfile:
+        path: /etc/bashrc
+        line: "export PATH=/usr/local/go/bin:$PATH"
+    - name: Mkdir GO
+      file: path=/home/vagrant/go/src owner=vagrant group=vagrant mode=0755 state=directory
+    - name: Add GOPATH
+      lineinfile:
+        path: /etc/bashrc
+        line: "export GOPATH=/home/vagrant/go:/vagrant/go"
+    - name: Install essential go packages
+      environment:
+        PATH: /usr/local/go/bin:{{ansible_env.PATH}}
+      shell: "go get {{item}}"
+      with_items:
+        - github.com/rogpeppe/godef
+        - github.com/nsf/gocode
+        - golang.org/x/tools/cmd/gorename
+        - golang.org/x/tools/cmd/guru
+        - golang.org/x/tools/cmd/goimports
+        - github.com/davecgh/go-spew/spew
+        - github.com/pkg/errors
+        - github.com/Sirupsen/logrus
+        - github.com/miolini/jsonf
+        - github.com/stretchr/testify/assert
